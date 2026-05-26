@@ -59,8 +59,15 @@ def calculate_accuracy(args, lang, temp_dir):
             fim_result['multi']['total_count']+=1
         elif 'span' in item['task_id']:
             fim_result['span']['total_count']+=1
-        # try:
-        if excute(lang, path, item["task_id"], temp_dir=temp_dir):
+        try:
+            passed = excute(lang, path, item["task_id"], temp_dir=temp_dir)
+        except FileNotFoundError as e:
+            print(f"[{lang}] runtime missing for task {item['task_id']}: {e}")
+            passed = False
+        except Exception:
+            traceback.print_exc()
+            passed = False
+        if passed:
             correct_count += 1
             if 'single' in item['task_id']:
                 fim_result['single']['correct']+=1
@@ -68,8 +75,6 @@ def calculate_accuracy(args, lang, temp_dir):
                 fim_result['multi']['correct']+=1
             elif 'span' in item['task_id']:
                 fim_result['span']['correct']+=1
-        # except:
-        #     traceback.print_exc()
             detail_scores.append({'task_id':item['task_id'], 'pass':True })
         else:
             detail_scores.append({'task_id':item['task_id'], 'pass':False})
