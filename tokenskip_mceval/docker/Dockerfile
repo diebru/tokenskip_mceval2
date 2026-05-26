@@ -1,9 +1,8 @@
 # Derived McEval image with the language runtimes that the upstream
 # multilingualnlp/mceval:latest is missing or has broken.
 #
-# Base image is Ubuntu 18.04. Many runtimes need third-party repos or
-# direct tarball installs because Ubuntu 18.04's package versions are
-# too old (e.g. Julia, Swift) or not in the default repos (Kotlin, Dart).
+# Base image is Ubuntu 18.04. Several runtimes need third-party repos or
+# tarball installs because 18.04 packages are too old or absent.
 #
 # Build:
 #   cd tokenskip_mceval/docker && docker build -t mceval-full .
@@ -21,26 +20,30 @@ RUN rm -f /etc/apt/sources.list.d/dart_stable.list \
           /etc/apt/sources.list.d/dart*.list \
           /etc/apt/sources.list.d/google-dart*.list 2>/dev/null || true
 
-# Base tooling + system-package runtimes that ARE in 18.04 apt repos
-RUN apt-get update -qq && apt-get install -y -qq --no-install-recommends \
+# 1. Base tooling
+RUN apt-get update && apt-get install -y --no-install-recommends \
         curl ca-certificates gnupg wget xz-utils unzip \
-        # Already-broken in image:
         python3-bs4 \
-        # Easy via apt:
-        ghc \
-        golang-go \
-        rustc cargo \
-        scala \
-        groovy \
-        nodejs npm \
-        && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/*
 
-# TypeScript + CoffeeScript via npm (global)
+# 2. Modern Node from NodeSource (18.04's default is too old for current tsc)
+RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+    && apt-get install -y --no-install-recommends nodejs \
+    && rm -rf /var/lib/apt/lists/*
+
+# 3. TypeScript + CoffeeScript via npm (global)
 RUN npm install -g --silent typescript coffeescript
 
-# --- Languages that need third-party installs ---
+# 4. Apt-installable runtimes, one per layer so failures are obvious
+RUN apt-get update && apt-get install -y --no-install-recommends ghc && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y --no-install-recommends golang-go && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y --no-install-recommends rustc cargo && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y --no-install-recommends scala && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y --no-install-recommends groovy && rm -rf /var/lib/apt/lists/*
 
-# Kotlin (sdkman is heavy; just grab the official kotlinc release)
+# --- Third-party tarball installs ---
+
+# Kotlin (official JetBrains release)
 ENV KOTLIN_VERSION=1.9.24
 RUN curl -sSL -o /tmp/kotlin.zip \
         "https://github.com/JetBrains/kotlin/releases/download/v${KOTLIN_VERSION}/kotlin-compiler-${KOTLIN_VERSION}.zip" \
@@ -57,27 +60,27 @@ RUN curl -sSL -o /tmp/julia.tar.gz \
     && rm /tmp/julia.tar.gz
 ENV PATH="/opt/julia/bin:${PATH}"
 
-# Dart (use the Google APT repo properly this time)
+# Dart (Google APT repo, freshly keyed)
 RUN wget -qO- https://dl-ssl.google.com/linux/linux_signing_key.pub | apt-key add - \
     && sh -c 'wget -qO- https://storage.googleapis.com/download.dartlang.org/linux/debian/dart_stable.list \
              > /etc/apt/sources.list.d/dart_stable.list' \
-    && apt-get update -qq && apt-get install -y -qq --no-install-recommends dart \
+    && apt-get update && apt-get install -y --no-install-recommends dart \
     && rm -rf /var/lib/apt/lists/*
 ENV PATH="/usr/lib/dart/bin:${PATH}"
 
-# Swift (Linux toolchain, official Apple tarball)
+# Swift (Apple Linux tarball)
 ENV SWIFT_VERSION=5.10.1
 RUN curl -sSL -o /tmp/swift.tar.gz \
         "https://download.swift.org/swift-${SWIFT_VERSION}-release/ubuntu1804/swift-${SWIFT_VERSION}-RELEASE/swift-${SWIFT_VERSION}-RELEASE-ubuntu18.04.tar.gz" \
     && mkdir -p /opt/swift \
     && tar xzf /tmp/swift.tar.gz -C /opt/swift --strip-components=1 \
     && rm /tmp/swift.tar.gz \
-    && apt-get update -qq && apt-get install -y -qq --no-install-recommends \
+    && apt-get update && apt-get install -y --no-install-recommends \
         libpython2.7 libncurses5 libtinfo5 libxml2 \
     && rm -rf /var/lib/apt/lists/*
 ENV PATH="/opt/swift/usr/bin:${PATH}"
 
-# Smoke test: every required binary on PATH
+# Smoke test: every required binary must be on PATH
 RUN for bin in python3 perl pwsh ghc go rustc scala groovy node tsc coffee kotlinc julia dart swift; do \
         command -v "$bin" >/dev/null || { echo "missing: $bin"; exit 1; }; \
     done && echo "All language runtimes present."
