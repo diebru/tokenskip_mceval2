@@ -456,7 +456,7 @@ def excute(language_type, path, task_id, temp_dir)->bool:
             exec_res = None
             with time_limit(timeout):
                 run_result = subprocess.run(
-                    ['python', path])
+                    ['python3', path])
                 print(task_id)
                 if run_result.exit_code != 0:
                     print("\nRun failed. Error message:")
