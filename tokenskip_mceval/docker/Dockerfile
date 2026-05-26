@@ -26,10 +26,17 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         python3-bs4 \
     && rm -rf /var/lib/apt/lists/*
 
-# 2. Modern Node from NodeSource (18.04's default is too old for current tsc)
-RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
-    && apt-get install -y --no-install-recommends nodejs \
-    && rm -rf /var/lib/apt/lists/*
+# 2. Node 16 via official tarball.
+# Newer Node (18, 20) needs glibc 2.28+, Ubuntu 18.04 has 2.27. Node 16 is
+# the last line that supports glibc 2.27, and is still recent enough for
+# current TypeScript / CoffeeScript.
+ENV NODE_VERSION=16.20.2
+RUN curl -sSL "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-x64.tar.xz" \
+        -o /tmp/node.tar.xz \
+    && mkdir -p /opt/node \
+    && tar xJf /tmp/node.tar.xz -C /opt/node --strip-components=1 \
+    && rm /tmp/node.tar.xz
+ENV PATH="/opt/node/bin:${PATH}"
 
 # 3. TypeScript + CoffeeScript via npm (global)
 RUN npm install -g --silent typescript coffeescript
