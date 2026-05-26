@@ -67,13 +67,16 @@ RUN curl -sSL -o /tmp/julia.tar.gz \
     && rm /tmp/julia.tar.gz
 ENV PATH="/opt/julia/bin:${PATH}"
 
-# Dart (Google APT repo, freshly keyed)
-RUN wget -qO- https://dl-ssl.google.com/linux/linux_signing_key.pub | apt-key add - \
-    && sh -c 'wget -qO- https://storage.googleapis.com/download.dartlang.org/linux/debian/dart_stable.list \
-             > /etc/apt/sources.list.d/dart_stable.list' \
-    && apt-get update && apt-get install -y --no-install-recommends dart \
-    && rm -rf /var/lib/apt/lists/*
-ENV PATH="/usr/lib/dart/bin:${PATH}"
+# Dart 2.19 SDK tarball.
+# The current Dart apt package needs glibc 2.31 (we have 2.27), and Dart 3.x
+# raises the requirement further. Dart 2.19 is the last release line that
+# works on Ubuntu 18.04 / glibc 2.27.
+ENV DART_VERSION=2.19.6
+RUN curl -sSL -o /tmp/dart.zip \
+        "https://storage.googleapis.com/dart-archive/channels/stable/release/${DART_VERSION}/sdk/dartsdk-linux-x64-release.zip" \
+    && unzip -q /tmp/dart.zip -d /opt \
+    && rm /tmp/dart.zip
+ENV PATH="/opt/dart-sdk/bin:${PATH}"
 
 # Swift (Apple Linux tarball)
 ENV SWIFT_VERSION=5.10.1
