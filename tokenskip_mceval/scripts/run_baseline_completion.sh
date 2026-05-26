@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
-# Full generation baseline: every McEval language with Qwen2.5-Coder-7B-Instruct.
-# ~2007 tasks. Uses tensor-parallel-size=2 across both A6000s.
+# Full completion baseline: every McEval language, ~10128 tasks total.
+# At ~1800 tok/s with tp=2 expect roughly 2-3 hours wall clock.
 set -euo pipefail
 
 MODEL_PATH="${MODEL_PATH:-Qwen/Qwen2.5-Coder-7B-Instruct}"
-OUT_DIR="${OUT_DIR:-../outputs/Qwen2.5-Coder-7B-Instruct/baseline/generation}"
+OUT_DIR="${OUT_DIR:-../outputs/Qwen2.5-Coder-7B-Instruct/baseline/completion}"
 DATA_ROOT="${DATA_ROOT:-../McEval}"
 
 python infer_mceval.py \
-    --task generation \
+    --task completion \
     --model-path "$MODEL_PATH" \
     --data-root "$DATA_ROOT" \
     --out-dir "$OUT_DIR" \

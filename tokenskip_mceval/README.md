@@ -27,33 +27,77 @@ pip install vllm transformers
 docker pull multilingualnlp/mceval
 ```
 
-## Step 1 — pilot (verify CoT is produced)
+## Three task typologies
+
+McEval has three task types. The inference script supports all of them via
+`--task generation|completion|explanation`:
+
+| Task | Input | Final-answer delimiter | Total tasks |
+|------|-------|------------------------|-------------|
+| `generation` | instruction | ```` ```<lang> ... ``` ```` | 2,007 |
+| `completion` | instruction with `[MASK]` regions | ```` ```<lang> ... ``` ```` | 10,128 |
+| `explanation` | code | `<answer> ... </answer>` | 2,066 |
+
+The Completion and Explanation data live in zips under `McEval/`. Unzip
+once on the server:
+
+```bash
+cd McEval/completion && unzip -q completion_data.zip
+cd ../explanation && unzip -q explaination_data.zip
+cd ../..
+```
+
+## Step 1 — pilots (verify CoT for each typology)
+
+Each pilot runs 10 Python tasks (~1 min) to confirm the prompt elicits
+reasoning and the splitter extracts the final answer correctly.
 
 ```bash
 cd tokenskip_mceval
-bash scripts/run_baseline_pilot.sh
-# Check that outputs/.../Python.jsonl has non-empty cot_text fields:
-python -c "import json; [print(len(json.loads(l)['cot_text']), '|', json.loads(l)['extracted_code'][:60]) \
-  for l in open('../outputs/Qwen2.5-Coder-7B-Instruct/baseline-pilot/Python.jsonl')]"
+bash scripts/run_baseline_pilot.sh         # generation
+bash scripts/run_pilot_completion.sh       # completion
+bash scripts/run_pilot_explanation.sh      # explanation
+
+# Inspect cot_text and extracted_answer:
+python -c "import json; \
+  [print(len(json.loads(l)['cot_text']), '|', json.loads(l)['extracted_answer'][:80]) \
+   for l in open('../outputs/Qwen2.5-Coder-7B-Instruct/baseline-pilot/explanation/Python.jsonl')]"
 ```
 
-If `cot_text` is mostly empty, the prompt isn't eliciting reasoning — adjust `COT_PROMPT_TEMPLATE` in `infer_mceval.py`.
-
-## Step 2 — full baseline
+## Step 2 — full baselines per typology
 
 ```bash
-bash scripts/run_baseline_full.sh
+bash scripts/run_baseline_full.sh           # generation, ~30 min
+bash scripts/run_baseline_completion.sh     # completion, ~2-3 h
+bash scripts/run_baseline_explanation.sh    # explanation, ~30 min (stage 1 only)
 ```
 
 ## Step 3 — accuracy via McEval Docker
 
 ```bash
-RESULTS_DIR=../outputs/Qwen2.5-Coder-7B-Instruct/baseline \
-SAVE_DIR=../outputs/Qwen2.5-Coder-7B-Instruct/eval \
+# Generation
+IMAGE=mceval-full \
+RESULTS_DIR=../outputs/Qwen2.5-Coder-7B-Instruct/baseline/generation \
+SAVE_DIR=../outputs/Qwen2.5-Coder-7B-Instruct/eval/generation \
+bash scripts/run_eval_docker.sh
+
+# Completion (same eval pipeline, code execution)
+IMAGE=mceval-full \
+RESULTS_DIR=../outputs/Qwen2.5-Coder-7B-Instruct/baseline/completion \
+SAVE_DIR=../outputs/Qwen2.5-Coder-7B-Instruct/eval/completion \
 bash scripts/run_eval_docker.sh
 ```
 
-McEval's per-language extractors will pull the code from the `raw_generation` field automatically — they handle markdown code fences, which is the format our prompt elicits.
+McEval's per-language extractors pull code from the `raw_generation` field
+automatically. Explanation eval is a **two-stage** process — see below.
+
+## Explanation stage 2 (round-trip)
+
+McEval evaluates explanation quality by *round-trip*: take the generated
+docstring, feed it to a code-generation prompt, execute the result against
+the same tests. If the docstring conveyed enough information, the
+regenerated code passes. The stage-2 orchestrator is `run_stage2_explanation.py`
+(TODO: not yet written).
 
 ## Output schema
 
