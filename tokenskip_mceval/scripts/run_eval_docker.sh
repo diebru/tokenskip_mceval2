@@ -26,6 +26,6 @@ docker run --rm \
     -v "$SAVE_DIR":/workspace/eval_out \
     -w /workspace/MMCodeEval/eval \
     "$IMAGE" \
-    python -u eval_all.py \
+    python3 -u eval_all.py \
         --result_path /workspace/results \
         --save_path /workspace/eval_out
