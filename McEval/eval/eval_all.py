@@ -12,17 +12,24 @@ import tempfile
 import shutil
 import random 
 
+def _copytree(src, dst):
+    # shutil.copytree(dirs_exist_ok=...) is 3.8+. Container ships Python 3.6.
+    if os.path.isdir(dst):
+        shutil.rmtree(dst)
+    shutil.copytree(src, dst)
+
+
 def prepare_tempdir_context(temp_dir):
-    shutil.copytree('../data/AWK', os.path.join(temp_dir, 'data/AWK'),dirs_exist_ok=True)
-    shutil.copytree('../data/C#', os.path.join(temp_dir, 'C#'),dirs_exist_ok=True)
-    shutil.copytree('../data/Common Lisp', os.path.join(temp_dir, 'Common Lisp'),dirs_exist_ok=True)
-    shutil.copytree('../data/F#', os.path.join(temp_dir, 'F#'),dirs_exist_ok=True)
-    shutil.copytree('../data/rust', os.path.join(temp_dir, 'rust'),dirs_exist_ok=True)
-    shutil.copytree('../data/go', os.path.join(temp_dir, 'go'),dirs_exist_ok=True)
-    shutil.copytree('../data/HTML', os.path.join(temp_dir, 'HTML'),dirs_exist_ok=True)
-    shutil.copytree('../data/JSON', os.path.join(temp_dir, 'JSON'),dirs_exist_ok=True)
-    shutil.copytree('../data/Markdown', os.path.join(temp_dir, 'Markdown'),dirs_exist_ok=True)
-    shutil.copytree('../data/Visual Basic', os.path.join(temp_dir, 'Visual Basic'),dirs_exist_ok=True)
+    _copytree('../data/AWK', os.path.join(temp_dir, 'data/AWK'))
+    _copytree('../data/C#', os.path.join(temp_dir, 'C#'))
+    _copytree('../data/Common Lisp', os.path.join(temp_dir, 'Common Lisp'))
+    _copytree('../data/F#', os.path.join(temp_dir, 'F#'))
+    _copytree('../data/rust', os.path.join(temp_dir, 'rust'))
+    _copytree('../data/go', os.path.join(temp_dir, 'go'))
+    _copytree('../data/HTML', os.path.join(temp_dir, 'HTML'))
+    _copytree('../data/JSON', os.path.join(temp_dir, 'JSON'))
+    _copytree('../data/Markdown', os.path.join(temp_dir, 'Markdown'))
+    _copytree('../data/Visual Basic', os.path.join(temp_dir, 'Visual Basic'))
     
 def calculate_accuracy(args, lang, temp_dir):
     items = [json.loads(x) for x in open(f"{args.result_path}/{lang}.jsonl").readlines() if x]
