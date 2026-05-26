@@ -41,12 +41,35 @@ ENV PATH="/opt/node/bin:${PATH}"
 # 3. TypeScript + CoffeeScript via npm (global)
 RUN npm install -g --silent typescript coffeescript
 
-# 4. Apt-installable runtimes, one per layer so failures are obvious
+# 4. Apt-installable runtimes (versions that ship in 18.04 work as-is)
 RUN apt-get update && apt-get install -y --no-install-recommends ghc && rm -rf /var/lib/apt/lists/*
-RUN apt-get update && apt-get install -y --no-install-recommends golang-go && rm -rf /var/lib/apt/lists/*
-RUN apt-get update && apt-get install -y --no-install-recommends rustc cargo && rm -rf /var/lib/apt/lists/*
-RUN apt-get update && apt-get install -y --no-install-recommends scala && rm -rf /var/lib/apt/lists/*
 RUN apt-get update && apt-get install -y --no-install-recommends groovy && rm -rf /var/lib/apt/lists/*
+
+# 4b. Modern Rust via rustup.
+# Ubuntu 18.04's apt rustc is 1.41, but McEval/data/rust/Cargo.toml requires
+# edition = "2021" (needs rustc >= 1.56). rustup installs latest stable.
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \
+        | sh -s -- -y --default-toolchain stable --profile minimal
+ENV PATH="/root/.cargo/bin:${PATH}"
+
+# 4c. Go 1.21 via official tarball.
+# 18.04's apt golang-go is 1.10; McEval/data/go/go.mod requires go 1.18.
+ENV GO_VERSION=1.21.5
+RUN curl -sSL "https://go.dev/dl/go${GO_VERSION}.linux-amd64.tar.gz" -o /tmp/go.tar.gz \
+    && tar xzf /tmp/go.tar.gz -C /opt \
+    && rm /tmp/go.tar.gz
+ENV PATH="/opt/go/bin:${PATH}"
+
+# 4d. Scala 3 via official tarball.
+# excute.py runs `scala -explain` which is a Scala 3-only flag. apt
+# installs Scala 2 (which doesn't recognise -explain).
+ENV SCALA3_VERSION=3.4.2
+RUN curl -sSL "https://github.com/lampepfl/dotty/releases/download/${SCALA3_VERSION}/scala3-${SCALA3_VERSION}.tar.gz" \
+        -o /tmp/scala3.tar.gz \
+    && mkdir -p /opt/scala3 \
+    && tar xzf /tmp/scala3.tar.gz -C /opt/scala3 --strip-components=1 \
+    && rm /tmp/scala3.tar.gz
+ENV PATH="/opt/scala3/bin:${PATH}"
 
 # --- Third-party tarball installs ---
 
