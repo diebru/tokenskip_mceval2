@@ -26,7 +26,7 @@ docker run --rm \
     -v "$SAVE_DIR":/workspace/eval_out \
     -w /workspace/MMCodeEval/eval \
     "$IMAGE" \
-    bash -c "python3 -m pip install -q beautifulsoup4 && \
+    bash -c "apt-get update -qq && apt-get install -y -qq python3-bs4 && \
         python3 -u eval_all.py \
             --result_path /workspace/results \
             --save_path /workspace/eval_out"
