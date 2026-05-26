@@ -21,6 +21,7 @@ SAVE_DIR="$(cd "$SAVE_DIR" && pwd)"
 # and temp-dir placement (see McEval/eval/eval_all.py:83, 91, 99, 127). Mount
 # the repo at that exact path so those paths resolve inside the container.
 docker run --rm \
+    -e LANG=C.UTF-8 -e LC_ALL=C.UTF-8 \
     -v "$MCEVAL_REPO":/workspace/MMCodeEval \
     -v "$RESULTS_DIR":/workspace/results \
     -v "$SAVE_DIR":/workspace/eval_out \
