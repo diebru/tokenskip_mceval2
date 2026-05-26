@@ -49,7 +49,7 @@ def build_prompts(tokenizer, tasks, fence_tag, system_msg):
 
 def load_tasks(data_dir: Path, lang: str, limit: int | None):
     path = data_dir / jsonl_basename(lang)
-    with open(path) as f:
+    with open(path, encoding="utf-8") as f:
         tasks = [json.loads(line) for line in f if line.strip()]
     if limit is not None:
         tasks = tasks[:limit]
@@ -68,7 +68,7 @@ def run_language(llm, tokenizer, data_dir, out_dir, lang, sampling_params, syste
 
     out_path = out_dir / jsonl_basename(lang)
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    with open(out_path, "w") as f:
+    with open(out_path, "w", encoding="utf-8") as f:
         for task, out in zip(tasks, outputs):
             generated = out.outputs[0].text
             cot, code = split_cot_code(generated)
