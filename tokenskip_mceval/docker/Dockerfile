@@ -45,12 +45,15 @@ RUN npm install -g --silent typescript coffeescript
 RUN apt-get update && apt-get install -y --no-install-recommends ghc && rm -rf /var/lib/apt/lists/*
 RUN apt-get update && apt-get install -y --no-install-recommends groovy && rm -rf /var/lib/apt/lists/*
 
-# 4b. Modern Rust via rustup.
-# Ubuntu 18.04's apt rustc is 1.41, but McEval/data/rust/Cargo.toml requires
-# edition = "2021" (needs rustc >= 1.56). rustup installs latest stable.
-RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \
-        | sh -s -- -y --default-toolchain stable --profile minimal
+# 4b. Use the rustup install that's already in the base image.
+# The McEval image ships with rustup pre-installed at /root/.cargo/bin
+# (a recent stable supporting edition 2021). Previously this was masked
+# because apt's old rustc 1.41 at /usr/bin came earlier in PATH. Putting
+# /root/.cargo/bin first makes the rustup toolchain the default.
+# Re-running the rustup installer fails on Docker overlayfs with a
+# cross-device link error, so we just lean on what's already there.
 ENV PATH="/root/.cargo/bin:${PATH}"
+RUN rustc --version && cargo --version
 
 # 4c. Go 1.21 via official tarball.
 # 18.04's apt golang-go is 1.10; McEval/data/go/go.mod requires go 1.18.
