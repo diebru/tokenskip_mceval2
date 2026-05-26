@@ -17,11 +17,14 @@ RESULTS_DIR="$(cd "$RESULTS_DIR" && pwd)"
 mkdir -p "$SAVE_DIR"
 SAVE_DIR="$(cd "$SAVE_DIR" && pwd)"
 
+# McEval's eval_all.py hardcodes /workspace/MMCodeEval/... for cache cleanup
+# and temp-dir placement (see McEval/eval/eval_all.py:83, 91, 99, 127). Mount
+# the repo at that exact path so those paths resolve inside the container.
 docker run --rm \
-    -v "$MCEVAL_REPO":/workspace/McEval \
+    -v "$MCEVAL_REPO":/workspace/MMCodeEval \
     -v "$RESULTS_DIR":/workspace/results \
     -v "$SAVE_DIR":/workspace/eval_out \
-    -w /workspace/McEval/eval \
+    -w /workspace/MMCodeEval/eval \
     "$IMAGE" \
     python -u eval_all.py \
         --result_path /workspace/results \
