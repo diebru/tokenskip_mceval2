@@ -41,7 +41,8 @@ def compress_language(llm_lingua, tasks, ratio):
     out = []
     for t in tasks:
         cot = t.get("cot_text", "") or ""
-        if len(cot) < MIN_COT_CHARS:
+        # rate >= 1.0 means keep everything — a no-compression control point.
+        if ratio >= 1.0 or len(cot) < MIN_COT_CHARS:
             rec = {
                 "task_id": t["task_id"],
                 "instruction": t.get("instruction", ""),
@@ -74,7 +75,8 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--model", required=True, help="model short name (dir under outputs/)")
     ap.add_argument("--typologies", nargs="+", default=["generation", "completion", "explanation"])
-    ap.add_argument("--ratios", nargs="+", type=float, default=[0.5, 0.6, 0.7, 0.8])
+    ap.add_argument("--ratios", nargs="+", type=float,
+                    default=[0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0])
     ap.add_argument("--llmlingua-path",
                     default="microsoft/llmlingua-2-xlm-roberta-large-meetingbank")
     ap.add_argument("--device", default="cuda")
