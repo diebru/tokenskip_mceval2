@@ -152,8 +152,12 @@ def eval(args):
         with open(save_path, 'a') as f:
             f.write(lang+'\t'+json.dumps(score[lang])+'\n')
 
-        # with open(detail_save_path, 'a') as f:
-        #     f.write(lang+'\t'+json.dumps(detail_scores)+'\n')
+        # Per-task pass/fail. Enabled so we can filter training data to
+        # CoTs that led to a correct answer (TokenSkip only compresses
+        # correct reasoning). detail_scores is a list of
+        # {"task_id":..., "pass":bool}.
+        with open(detail_save_path, 'a', encoding='utf-8') as f:
+            f.write(lang+'\t'+json.dumps(detail_scores)+'\n')
         
         print('\n'*3)
         print('#'*80)
