@@ -92,24 +92,18 @@ def run_language(llm, tokenizer, stage1_path: Path, out_path: Path, lang: str,
         for r, out in zip(records, outputs):
             generated = out.outputs[0].text
             cot, code = split_cot_code(generated)
-            # Reshape to McEval's generation-eval schema. The Docker eval
-            # reads raw_generation and runs the per-language extractor on it.
-            # We keep stage-1 fields under stage1_* for traceability.
-            record = {
-                "task_id": r["task_id"],
-                "prompt": r["prompt"],
-                "canonical_solution": r["canonical_solution"],
-                "test": r["test"],
-                "entry_point": r["entry_point"],
-                "signature": r["signature"],
-                "docstring": r["docstring"],
-                "instruction": r["instruction"],
-                "raw_generation": [generated],
-                "cot_text": cot,
-                "extracted_answer": code,
-                "stage1_docstring": r["raw_generation"][0],
-                "stage1_cot_text": r.get("cot_text", ""),
-            }
+            # Preserve all stage-1 fields and overlay the stage-2 ones.
+            # Hand-listing fields broke because some McEval languages
+            # (AWK, HTML, JSON, Markdown — the file-compare ones) omit
+            # 'test' and other "code-task" fields entirely.
+            stage1_docstring = r["raw_generation"][0]
+            stage1_cot = r.get("cot_text", "")
+            record = dict(r)
+            record["raw_generation"] = [generated]
+            record["cot_text"] = cot
+            record["extracted_answer"] = code
+            record["stage1_docstring"] = stage1_docstring
+            record["stage1_cot_text"] = stage1_cot
             f.write(json.dumps(record, ensure_ascii=False) + "\n")
     print(f"[{lang}] wrote {len(records)} -> {out_path}")
 
