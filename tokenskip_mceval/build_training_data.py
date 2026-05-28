@@ -124,9 +124,23 @@ def main():
     ap.add_argument("--seed", type=int, default=42)
     ap.add_argument("--min-cot-chars", type=int, default=40,
                     help="Drop tasks whose original CoT is shorter than this")
+    ap.add_argument("--split-file", default=None,
+                    help="Path to train_ids.json from make_split.py. If given,"
+                         " restrict training data to this split.")
     args = ap.parse_args()
 
     random.seed(args.seed)
+
+    # Optional split-id filter (so the SFT only sees the train partition).
+    split_ids = None
+    if args.split_file:
+        with open(args.split_file) as f:
+            split_data = json.load(f)
+        split_ids = set(split_data.get(args.typology, []))
+        if not split_ids:
+            raise SystemExit(
+                f"Split file has no ids for typology {args.typology!r}")
+        print(f"Restricting to {len(split_ids)} ids from {args.split_file}")
 
     pass_map = load_pass_map(args.model, args.typology)
     if not pass_map:
@@ -140,6 +154,8 @@ def main():
     # Iterate task_ids that exist at all ratios + in the pass map.
     common_ids = set.intersection(*[set(d) for d in by_ratio.values() if d])
     common_ids &= set(pass_map.keys())
+    if split_ids is not None:
+        common_ids &= split_ids
 
     n_total = len(common_ids)
     n_pass = sum(1 for t in common_ids if pass_map[t])

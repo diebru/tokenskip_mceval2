@@ -7,6 +7,7 @@ cd "$(dirname "$0")/.."
 
 OUT_ROOT="../outputs"
 RATIOS="${RATIOS:-0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0.9 1.0}"
+SPLIT_FILE="${SPLIT_FILE:-${OUT_ROOT}/split/train_ids.json}"
 
 JOBS=(
     "Qwen2.5-Coder-7B-Instruct|generation"
@@ -20,6 +21,11 @@ JOBS=(
 
 log() { echo -e "\n=== [$(date '+%H:%M:%S')] $* ==="; }
 
+if [[ ! -f "$SPLIT_FILE" ]]; then
+    log "Split file $SPLIT_FILE not found — generating with make_split.py"
+    python make_split.py
+fi
+
 for entry in "${JOBS[@]}"; do
     IFS="|" read -r MODEL TYP <<< "$entry"
     OUT="${OUT_ROOT}/${MODEL}/train/${TYP}.json"
@@ -28,6 +34,7 @@ for entry in "${JOBS[@]}"; do
         --model "$MODEL" \
         --typology "$TYP" \
         --ratios $RATIOS \
+        --split-file "$SPLIT_FILE" \
         --out "$OUT" || echo "[skip] ${MODEL}/${TYP} failed"
 done
 
