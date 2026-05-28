@@ -119,43 +119,56 @@ LLMLingua hits the ratios cleanly within ±2% across all datasets.
 
 ## What's actively happening right now
 
-**One LoRA SFT done**: Qwen-1.5B / generation. Adapter at
-`outputs/Qwen2.5-Coder-1.5B-Instruct/lora-generation/`, merged model at
-`.../merged-generation/`.
+### Attempt 1: per-typology adapter (failed)
 
-**Open question (sanity check pending)**: does the merged model actually
-shorten CoT when prompted with lower `[Compression ratio: X]` markers?
-First quick test produced *no CoT at all* at any ratio — but the test
-used an out-of-distribution prompt (one-line "is_palindrome" instead of a
-real McEval instruction).
+Trained Qwen-1.5B / **generation only** (500 examples) → adapter at
+`.../lora-generation/`, merged at `.../merged-generation/`. Sanity check
+showed **no CoT at any ratio** and ratios 0.1-0.7 produced byte-identical
+output. SFT didn't override the base model's "go straight to code" prior.
+**Diagnosis**: 500 examples is below TokenSkip's working threshold
+(~7,473 GSM8K). Too few examples per ratio (~50 each) for a 1.5B model.
 
-**Re-test command** (uses an actual McEval test-set task):
-```bash
-cd ~/training_llama_8.1/tokenskip_mceval2 && git pull
-cd tokenskip_mceval
-python scripts/sanity_check_merged.py \
-    ../outputs/Qwen2.5-Coder-1.5B-Instruct/merged-generation
-```
-Output should show CoT length shrinking as ratio drops. If yes → green-light
-the full test-set sweep. If no → fall back to combined-typology training
-(more data per adapter) before scaling.
+### Attempt 2: combined adapter (works ✅)
+
+Concatenated generation+completion+explanation per model with
+`combine_training_data.py`, retrained Qwen-1.5B on 4,148 combined examples
+(~415 per ratio). Adapter at `.../lora-combined/`, merged at
+`.../merged-combined/`.
+
+Sanity check on a real McEval test-set Python task
+(`Python/10 - sum_of_factorials_optimized`):
+
+| ratio | tokens | CoT chars before fence | Behavior                                    |
+|------:|------:|----------------------:|---------------------------------------------|
+|   1.0 |  263 |                 575 | ✅ Full structured reasoning                 |
+|   0.7 |  212 |                 356 | ✅ TokenSkip-style fragmented keywords       |
+|   0.5 |  222 |                 427 | ✅ Compressed                                |
+|   0.3 |  192 |                 286 | ✅ Heavily compressed                        |
+|   0.1 | 1024 |                1038 | ⚠️ Degenerated into repeating "50 50 50..." |
+
+SFT learned ratio control for **0.3–1.0**. The 0.1 collapse matches
+TokenSkip §4.3: "ratio adherence largely degrades at these lower ratios…
+excessive trimming causes loss of critical information." See paper
+Figure 6 — they observed the same. Production sweep should use ratios
+**0.3–1.0** (8 points), dropping 0.1 and 0.2 as degenerate.
 
 ---
 
 ## What comes next (in order)
 
-1. **Confirm SFT worked** via the re-run sanity check above.
+1. ✅ ~~Confirm SFT worked via sanity check~~ — done, see above.
 2. **Patch `infer_mceval.py`** to accept `--task-ids <split-file>` so we
-   generate only on the 2,803 test ids.
-3. **Sweep inference** at every ratio on the test set using the merged model.
+   generate only on the 2,803 test ids (not the full 14k).
+3. **Sweep inference at ratios 0.3–1.0** on the test set using the
+   `merged-combined` model. (Skip 0.1, 0.2 — sanity check showed they
+   degenerate; TokenSkip Figure 6 confirms this is expected.)
 4. **Docker eval** each ratio's outputs → accuracy-vs-ratio table.
 5. **PDU energy capture** wrapping that test-set sweep — gives the energy
    curve aligned with the accuracy curve.
-6. **Plot** accuracy and energy vs realised CoT length (paper figure 5
+6. **Plot** accuracy and energy vs realized CoT length (paper Figure 5
    equivalent + the energy half of the headline result).
-7. **Scale out**: train the remaining 6 (model, typology) LoRA adapters
-   (3B/gen, 3B/comp, 1.5B/comp, 7B/gen, 7B/comp, 7B/exp) and repeat steps
-   2–5 for each.
+7. **Scale out**: train combined adapters for Qwen-3B (5,181 ex) and
+   Qwen-7B (7,013 ex). Repeat steps 2–5 for each.
 
 ---
 
