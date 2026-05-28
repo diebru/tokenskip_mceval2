@@ -28,6 +28,8 @@ MERGED_DIR="$(realpath -m ${OUT_ROOT}/${MODEL_SHORT}/merged-${TYPOLOGY})"
 CONFIG_TMP="$(mktemp -t lora_sft_XXXXXX.yaml)"
 
 # 1) Register our JSON in a local dataset_info.json that LlamaFactory will read.
+# 'combined' merges generation + completion + explanation per model so the
+# adapter sees ~4-7k examples (TokenSkip-scale) instead of 500.
 cat > "${DATASET_DIR}/dataset_info.json" <<EOF
 {
   "mceval_tokenskip_generation": {
@@ -42,6 +44,11 @@ cat > "${DATASET_DIR}/dataset_info.json" <<EOF
   },
   "mceval_tokenskip_explanation": {
     "file_name": "explanation.json",
+    "formatting": "alpaca",
+    "columns": { "prompt": "instruction", "query": "input", "response": "output" }
+  },
+  "mceval_tokenskip_combined": {
+    "file_name": "combined.json",
     "formatting": "alpaca",
     "columns": { "prompt": "instruction", "query": "input", "response": "output" }
   }
