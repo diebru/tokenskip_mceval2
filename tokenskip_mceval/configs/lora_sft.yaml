@@ -1,0 +1,54 @@
+# LlamaFactory LoRA SFT config for TokenSkip-style training.
+# Hyperparameters mirror TokenSkip §B.1 exactly:
+#   - LoRA rank 8, alpha 16
+#   - 3 epochs, lr 5e-5 cosine, warmup_ratio 0.1, AdamW
+#   - Per-(model, typology) adapter (one config rendered per dataset).
+#
+# This is a TEMPLATE. The runner (scripts/run_lora_sft.sh) substitutes the
+# placeholders ${MODEL_PATH}, ${DATASET_NAME}, ${OUTPUT_DIR}, ${TEMPLATE}.
+
+### model
+model_name_or_path: ${MODEL_PATH}
+trust_remote_code: true
+
+### method
+stage: sft
+do_train: true
+finetuning_type: lora
+lora_rank: 8
+lora_alpha: 16
+lora_dropout: 0.0
+lora_target: all          # all linear layers, like TokenSkip's default
+
+### dataset
+dataset_dir: ${DATASET_DIR}
+dataset: ${DATASET_NAME}
+template: ${TEMPLATE}      # qwen for Qwen2.5-Coder-Instruct; llama3 for Llama
+cutoff_len: 2048           # CoT@1.0 + code can exceed 1024 for code tasks
+overwrite_cache: true
+preprocessing_num_workers: 16
+
+### output
+output_dir: ${OUTPUT_DIR}
+logging_steps: 20
+save_steps: 500
+save_total_limit: 2
+plot_loss: true
+overwrite_output_dir: true
+
+### train
+per_device_train_batch_size: 2
+gradient_accumulation_steps: 8     # effective batch size 16
+learning_rate: 5.0e-5
+num_train_epochs: 3.0
+lr_scheduler_type: cosine
+warmup_ratio: 0.1
+weight_decay: 0.0
+bf16: true
+ddp_timeout: 180000000
+
+### eval — small val split off the train set so we can monitor loss
+val_size: 0.05
+per_device_eval_batch_size: 2
+eval_strategy: steps
+eval_steps: 500
