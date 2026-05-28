@@ -93,5 +93,9 @@ pushd "${LLAMAFACTORY_DIR}" > /dev/null
 llamafactory-cli export "${MERGE_CFG}"
 popd > /dev/null
 
+# Patch tokenizer_config.json that llamafactory-cli export wrote with
+# extra_special_tokens=[], which transformers >=4.45 rejects.
+python fix_tokenizer_config.py "${MERGED_DIR}"
+
 echo
 echo "Done: adapter at ${OUTPUT_DIR}, merged model at ${MERGED_DIR}"
