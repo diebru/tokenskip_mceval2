@@ -34,6 +34,18 @@ from languages import LANG_TO_FENCE
 
 OUT_ROOT = Path("../outputs")
 
+# Heuristic to drop training examples whose "extracted_answer" is actually
+# prose, not code. Happens when baseline output had no code fence at all
+# and split_cot_code returned the whole raw_generation as the "answer".
+CODE_CHARS = set("(){}[];=<>+-*/&|!~^%:.,#")
+def looks_like_code(text: str) -> bool:
+    if not text or len(text) < 30:
+        return False
+    n_code = sum(1 for c in text if c in CODE_CHARS)
+    if n_code < 8:
+        return False
+    return (n_code / len(text)) >= 0.03
+
 SYSTEM_MSGS = {
     "generation": "You are an expert programmer.",
     "completion": "You are an expert programmer.",
@@ -164,6 +176,7 @@ def main():
 
     out_rows = []
     skipped_empty = 0
+    skipped_not_code = 0
     for task_id in sorted(common_ids):
         if not pass_map[task_id]:
             continue
@@ -174,6 +187,12 @@ def main():
            len(rec.get("cot_text", "")) < args.min_cot_chars:
             skipped_empty += 1
             continue
+        # Drop examples where the "answer" was prose, not code. For explanation
+        # this filter doesn't apply (the answer IS prose).
+        if args.typology in ("generation", "completion"):
+            if not looks_like_code(rec.get("extracted_answer", "")):
+                skipped_not_code += 1
+                continue
         instruction = SYSTEM_MSGS[args.typology]
         # Use the base instruction from the original task plus the ratio marker
         user_msg = rec.get("instruction", "") + RATIO_MARKER.format(ratio=ratio)
@@ -191,7 +210,8 @@ def main():
         json.dump(out_rows, f, ensure_ascii=False, indent=1)
 
     print(f"wrote {len(out_rows)} examples -> {out_path} "
-          f"(skipped {skipped_empty} for empty CoT)")
+          f"(skipped {skipped_empty} for empty CoT, "
+          f"{skipped_not_code} for prose-not-code answer)")
     # Ratio distribution in the dataset
     from collections import Counter
     ratio_dist = Counter()
