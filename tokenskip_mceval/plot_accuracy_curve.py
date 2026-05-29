@@ -45,6 +45,32 @@ def load_eval_results(p: Path):
     return correct, total
 
 
+def baseline_on_test_split(model: str, typology: str, test_ids_file: Path):
+    """Apples-to-apples baseline: read eval-detail (per-task pass/fail from
+    the pre-SFT run) and count correct only over the test split task_ids.
+    Returns (correct, total) or None if files are missing."""
+    detail_dir = Path("../outputs") / model / "eval-detail" / typology
+    detail_files = list(detail_dir.glob("*_detail.jsonl"))
+    if not detail_files:
+        return None
+    with open(test_ids_file) as f:
+        test_ids = set(json.load(f).get(typology, []))
+    if not test_ids:
+        return None
+    correct = total = 0
+    for f in detail_files:
+        for line in open(f, encoding="utf-8"):
+            if "\t" not in line:
+                continue
+            _, payload = line.split("\t", 1)
+            for d in json.loads(payload):
+                if d["task_id"] in test_ids:
+                    total += 1
+                    if d.get("pass"):
+                        correct += 1
+    return (correct, total) if total else None
+
+
 def cot_token_stats(sweep_dir: Path, tokenizer):
     """Mean cot_text length in tokens across all per-lang jsonls in this dir."""
     total_tokens = 0
@@ -73,6 +99,8 @@ def main():
     ap.add_argument("--out-png", default=None)
     ap.add_argument("--ratios", nargs="+", type=float,
                     default=[0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0])
+    ap.add_argument("--test-ids-file", default="../outputs/split/test_ids.json",
+                    help="Used to compute the baseline accuracy on the same test split")
     args = ap.parse_args()
 
     tok = None
@@ -82,6 +110,17 @@ def main():
 
     sweep_root = OUT_ROOT / args.model / "test-sweep"
     eval_root = OUT_ROOT / args.model / "eval-test-sweep" / args.typology
+
+    baseline = baseline_on_test_split(args.model, args.typology,
+                                       Path(args.test_ids_file))
+    baseline_acc = None
+    if baseline is not None:
+        bc, btot = baseline
+        baseline_acc = bc / btot
+        print(f'\nBASELINE (pre-SFT) on same test split: '
+              f'{bc}/{btot} = {100*baseline_acc:.2f}%\n')
+    else:
+        print("(baseline detail not found; skipping reference line)\n")
 
     print(f'{"ratio":>5} {"mean_cot_tok":>13} {"correct":>8} {"total":>6} '
           f'{"accuracy":>9}')
@@ -115,10 +154,14 @@ def main():
         toks = [r[1] for r in rows]
         accs = [r[4] * 100 for r in rows]
         fig, ax = plt.subplots(figsize=(7, 5))
-        ax.plot(toks, accs, "o-", color="#2c7fb8")
+        ax.plot(toks, accs, "o-", color="#2c7fb8", label="TokenSkip (SFT'd)")
         for r, t, a in zip(rs, toks, accs):
             ax.annotate(f"{r:.1f}", xy=(t, a), xytext=(4, 4),
                         textcoords="offset points", fontsize=8)
+        if baseline_acc is not None:
+            ax.axhline(100 * baseline_acc, color="#d95f02", linestyle="--",
+                       label=f"Baseline pre-SFT ({100*baseline_acc:.1f}%)")
+        ax.legend()
         unit = "tokens" if tok is not None else "chars"
         ax.set_xlabel(f"Mean realized CoT length ({unit})")
         ax.set_ylabel("Accuracy (%)")
