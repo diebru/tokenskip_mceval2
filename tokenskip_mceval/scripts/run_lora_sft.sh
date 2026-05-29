@@ -51,6 +51,11 @@ cat > "${DATASET_DIR}/dataset_info.json" <<EOF
     "file_name": "combined.json",
     "formatting": "alpaca",
     "columns": { "prompt": "instruction", "query": "input", "response": "output" }
+  },
+  "mceval_tokenskip_combined_balanced": {
+    "file_name": "combined_balanced.json",
+    "formatting": "alpaca",
+    "columns": { "prompt": "instruction", "query": "input", "response": "output" }
   }
 }
 EOF
