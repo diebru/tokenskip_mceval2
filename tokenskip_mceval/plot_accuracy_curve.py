@@ -101,6 +101,8 @@ def main():
                     default=[0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0])
     ap.add_argument("--test-ids-file", default="../outputs/split/test_ids.json",
                     help="Used to compute the baseline accuracy on the same test split")
+    ap.add_argument("--suffix", default="combined",
+                    help="Reads test-sweep-{suffix} / eval-test-sweep-{suffix}")
     args = ap.parse_args()
 
     tok = None
@@ -108,8 +110,15 @@ def main():
         from transformers import AutoTokenizer
         tok = AutoTokenizer.from_pretrained(args.tokenizer, trust_remote_code=True)
 
-    sweep_root = OUT_ROOT / args.model / "test-sweep"
-    eval_root = OUT_ROOT / args.model / "eval-test-sweep" / args.typology
+    sweep_root = OUT_ROOT / args.model / f"test-sweep-{args.suffix}"
+    eval_root = OUT_ROOT / args.model / f"eval-test-sweep-{args.suffix}" / args.typology
+    # Back-compat: fall back to legacy unsuffixed dirs if the suffixed ones
+    # don't exist (so the first 1.5B/combined sweep still plots).
+    if not sweep_root.exists() and args.suffix == "combined":
+        legacy = OUT_ROOT / args.model / "test-sweep"
+        if legacy.exists():
+            sweep_root = legacy
+            eval_root = OUT_ROOT / args.model / "eval-test-sweep" / args.typology
 
     baseline = baseline_on_test_split(args.model, args.typology,
                                        Path(args.test_ids_file))

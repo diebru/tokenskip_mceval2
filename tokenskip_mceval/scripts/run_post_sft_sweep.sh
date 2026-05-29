@@ -16,14 +16,15 @@ cd "$(dirname "$0")/.."
 
 MODEL_SHORT="${1:?MODEL_SHORT required}"
 TYPOLOGY="${2:-generation}"
+SUFFIX="${3:-combined}"   # which merged-{SUFFIX} dir to use; matches LoRA name
 RATIOS="${RATIOS:-0.3 0.4 0.5 0.6 0.7 0.8 0.9 1.0}"
 TP="${TP:-1}"
 
 OUT_ROOT="../outputs"
-MERGED_DIR="${OUT_ROOT}/${MODEL_SHORT}/merged-combined"
+MERGED_DIR="${OUT_ROOT}/${MODEL_SHORT}/merged-${SUFFIX}"
 SPLIT_FILE="${OUT_ROOT}/split/test_ids.json"
-SWEEP_ROOT="${OUT_ROOT}/${MODEL_SHORT}/test-sweep"
-EVAL_ROOT="${OUT_ROOT}/${MODEL_SHORT}/eval-test-sweep"
+SWEEP_ROOT="${OUT_ROOT}/${MODEL_SHORT}/test-sweep-${SUFFIX}"
+EVAL_ROOT="${OUT_ROOT}/${MODEL_SHORT}/eval-test-sweep-${SUFFIX}"
 
 if [[ ! -d "$MERGED_DIR" ]]; then
     echo "Merged model not found at $MERGED_DIR. Run run_lora_sft.sh ... combined first."
